@@ -1,6 +1,7 @@
 
 from flask import Flask, request, send_from_directory, jsonify
-import qrcode 
+import qrcode
+from pyzbar import pyzbar
 from PIL import Image
 from datetime import datetime
 import os
@@ -111,6 +112,29 @@ def qr_in_image():
     folder = 'static'
     stack_images(img_bg, img_small, pos, os.path.join(folder, output_file))
     return send_from_directory(folder, output_file)
+
+@app.route('/qr_decode', methods=['POST'])
+def qr_decode():
+    '''
+    Able to decode multiple QR codes in the image. Return data includes position of QR codes.
+    '''
+    file = request.files.get('image', None)
+    if not file:
+        return 'Must upload file as multipart with name "image"', 400
+
+    img = Image.open(file)
+    qrcodes = pyzbar.decode(img)
+    print(len(qrcodes))
+
+    result = []
+    for qrcode in qrcodes:
+        type = qrcode.type
+        x, y, w, h = qrcode.rect
+        data = qrcode.data.decode('utf-8')
+        result.append({'type': type, 'data': data, 'rect': (x, y, w, h)})
+
+    print(result)
+    return jsonify(result)
 
 
 app.run(port=3000, debug=True)
